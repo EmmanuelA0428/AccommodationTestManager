@@ -39,11 +39,6 @@ jobs:
           $source=(Resolve-Path work/installer).Path
           $payload=(Resolve-Path work/payload).Path
           $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta2-Hotfix1.exe'
-          $operation="$source\Install-OneClick.ps1"
-          $operationText=[IO.File]::ReadAllText($operation)
-          $trap='trap { ($_ | Out-String) | Set-Content -LiteralPath $env:ATM_SETUP_DIAGNOSTIC_LOG; exit 1 }'
-          $operationText=$operationText.Replace("`$ErrorActionPreference='Stop'","`$ErrorActionPreference='Stop'`r`n$trap")
-          [IO.File]::WriteAllText($operation,$operationText,(New-Object Text.UTF8Encoding($true)))
           $script="$source\Setup-Portable.nsi"
           $text=[IO.File]::ReadAllText($script).Replace('${PAYLOAD_DIR}/','${PAYLOAD_DIR}\').Replace('${SOURCE_DIR}/','${SOURCE_DIR}\').Replace('Docs/*','Docs\*')
           # Launch 64-bit PowerShell directly; avoid the nsExec intermediary.
@@ -59,10 +54,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $env:ATM_SETUP_DIAGNOSTIC_LOG="$env:GITHUB_WORKSPACE\work\setup-diagnostic.log"
           $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta2-Hotfix1.exe" -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) {
-            if (Test-Path $env:ATM_SETUP_DIAGNOSTIC_LOG) { Get-Content $env:ATM_SETUP_DIAGNOSTIC_LOG } else { "Installation script did not produce a diagnostic log" }
             & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File work/installer/Install-OneClick.ps1 -PayloadFolder (Resolve-Path work/payload).Path -DocsFolder (Resolve-Path work/installer/Docs).Path
             throw "Install failed: $($p.ExitCode)"
           }
@@ -77,7 +70,6 @@ jobs:
           if (Test-Path "$root\AccommodationTestManager.exe") { throw 'App was not uninstalled' }
           'Native installer smoke test passed. No app launch or test restrictions executed.'
       - name: Publish public setup asset
-        if: ${{ false }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
