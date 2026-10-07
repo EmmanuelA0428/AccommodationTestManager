@@ -49,7 +49,10 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta2-Hotfix1.exe" -ArgumentList '/S' -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "Install failed: $($p.ExitCode)" }
+          if ($p.ExitCode -ne 0) {
+            & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File work/installer/Install-OneClick.ps1 -PayloadFolder (Resolve-Path work/payload).Path -DocsFolder (Resolve-Path work/installer/Docs).Path
+            throw "Install failed: $($p.ExitCode)"
+          }
           $root="$env:ProgramFiles\AccommodationTestManagerBeta2"
           foreach ($file in @('AccommodationTestManager.exe','coreclr.dll','Scripts\Beta2Restrictions.ps1','setup-installed-files.json','Uninstall.exe')) {
             if (!(Test-Path "$root\$file")) { throw "Missing installed file: $file" }
