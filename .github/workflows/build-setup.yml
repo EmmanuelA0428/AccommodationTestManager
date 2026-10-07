@@ -39,6 +39,9 @@ jobs:
           $source=(Resolve-Path work/installer).Path
           $payload=(Resolve-Path work/payload).Path
           $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta2-Hotfix1.exe'
+          $script="$source\Setup-Portable.nsi"
+          $text=[IO.File]::ReadAllText($script).Replace('${PAYLOAD_DIR}/','${PAYLOAD_DIR}\').Replace('${SOURCE_DIR}/','${SOURCE_DIR}\')
+          [IO.File]::WriteAllText($script,$text,(New-Object Text.UTF8Encoding($true)))
           & $compiler /V3 "/DSOURCE_DIR=$source" "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "$source\Setup-Portable.nsi"
           if ($LASTEXITCODE -ne 0) { throw 'Setup compile failed' }
       - name: Native silent install and uninstall smoke test
