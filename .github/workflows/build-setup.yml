@@ -41,6 +41,9 @@ jobs:
           $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta2-Hotfix1.exe'
           $script="$source\Setup-Portable.nsi"
           $text=[IO.File]::ReadAllText($script).Replace('${PAYLOAD_DIR}/','${PAYLOAD_DIR}\').Replace('${SOURCE_DIR}/','${SOURCE_DIR}\').Replace('Docs/*','Docs\*')
+          # Launch 64-bit PowerShell directly; avoid the nsExec intermediary.
+          $text=$text.Replace("nsExec::ExecToLog '","ExecWait '").Replace("'`r`n Pop `$Result","' `$Result").Replace("'`n Pop `$Result","' `$Result")
+          $text=$text.Replace('-NoProfile -ExecutionPolicy','-NoProfile -WindowStyle Hidden -ExecutionPolicy')
           [IO.File]::WriteAllText($script,$text,(New-Object Text.UTF8Encoding($true)))
           & $compiler /V3 "/DSOURCE_DIR=$source" "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "$source\Setup-Portable.nsi"
           if ($LASTEXITCODE -ne 0) { throw 'Setup compile failed' }
