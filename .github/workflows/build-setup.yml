@@ -1,0 +1,70 @@
+name: Build one-click setup
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  setup:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prepare verified beta sources
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory work -Force | Out-Null
+          Invoke-WebRequest 'https://github.com/EmmanuelA0428/AccommodationTestManager/releases/download/v1.0.0-beta.2.1/AccommodationTestManager-Beta2-Hotfix1.zip' -OutFile work/app.zip
+          if ((Get-FileHash work/app.zip -Algorithm SHA256).Hash -ne '63ad255efb89ebbff36d2e87bf565b37bae6eed7049eb1ee22577847c5c4c68d') { throw 'Source checksum mismatch' }
+          Expand-Archive work/app.zip work/source
+          Expand-Archive AccommodationTestManager-SetupSources.zip work/installer
+          $project=Get-ChildItem work/source -Recurse -Filter AccommodationTestManager.csproj | Select-Object -First 1
+          if (!$project) { throw 'App project missing' }
+          dotnet publish $project.FullName -c Release -r win-x64 --self-contained true -p:EnableWindowsTargeting=true -p:DebugType=None -p:DebugSymbols=false -o work/payload
+          if ($LASTEXITCODE -ne 0) { throw 'Publish failed' }
+          New-Item -ItemType Directory work/payload/SetupSupport -Force | Out-Null
+          Copy-Item work/installer/Uninstall-OneClick.ps1 work/payload/SetupSupport/
+          $restore=Get-ChildItem work/source -Recurse -Filter Emergency-Restore.ps1 | Select-Object -First 1
+          Copy-Item $restore.FullName work/payload/SetupSupport/
+      - name: Compile setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          choco install nsis --version=3.11 -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS install failed' }
+          $compiler="${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          $source=(Resolve-Path work/installer).Path
+          $payload=(Resolve-Path work/payload).Path
+          $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta2-Hotfix1.exe'
+          & $compiler /V3 "/DSOURCE_DIR=$source" "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "$source\Setup-Portable.nsi"
+          if ($LASTEXITCODE -ne 0) { throw 'Setup compile failed' }
+      - name: Native silent install and uninstall smoke test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta2-Hotfix1.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Install failed: $($p.ExitCode)" }
+          $root="$env:ProgramFiles\AccommodationTestManagerBeta2"
+          foreach ($file in @('AccommodationTestManager.exe','coreclr.dll','Scripts\Beta2Restrictions.ps1','setup-installed-files.json','Uninstall.exe')) {
+            if (!(Test-Path "$root\$file")) { throw "Missing installed file: $file" }
+          }
+          if (!(Test-Path "$env:PUBLIC\Desktop\Accommodation Test Manager Beta 2.lnk")) { throw 'Desktop shortcut missing' }
+          $p=Start-Process "$root\Uninstall.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Uninstall failed: $($p.ExitCode)" }
+          Start-Sleep 3
+          if (Test-Path "$root\AccommodationTestManager.exe") { throw 'App was not uninstalled' }
+          'Native installer smoke test passed. No app launch or test restrictions executed.'
+      - name: Publish public setup asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $file='AccommodationTestManager-Setup-Beta2-Hotfix1.exe'
+          $hash=(Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $file" | Set-Content "$file.sha256" -Encoding ascii
+          gh release upload v1.0.0-beta.2.1 $file "$file.sha256" --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
+          "Published SHA256: $hash"
