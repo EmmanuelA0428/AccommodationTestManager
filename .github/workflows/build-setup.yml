@@ -44,6 +44,9 @@ jobs:
           # Launch 64-bit PowerShell directly; avoid the nsExec intermediary.
           $text=$text.Replace("nsExec::ExecToLog '","ExecWait '").Replace("'`r`n Pop `$Result","' `$Result").Replace("'`n Pop `$Result","' `$Result")
           $text=$text.Replace('-NoProfile -ExecutionPolicy','-NoProfile -WindowStyle Hidden -ExecutionPolicy')
+          $text=$text.Replace('Sysnative\WindowsPowerShell','System32\WindowsPowerShell')
+          $text=$text.Replace(" ExecWait '"," `${DisableX64FSRedirection}`r`n ExecWait '")
+          $text=$text.Replace("' `$Result","' `$Result`r`n `${EnableX64FSRedirection}")
           [IO.File]::WriteAllText($script,$text,(New-Object Text.UTF8Encoding($true)))
           & $compiler /V3 "/DSOURCE_DIR=$source" "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" "$source\Setup-Portable.nsi"
           if ($LASTEXITCODE -ne 0) { throw 'Setup compile failed' }
