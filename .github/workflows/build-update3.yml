@@ -17,7 +17,7 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           $zip='AccommodationTestManager-Beta2-Update3.zip'
-          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne '212d3c2b04cea88bf32b7b20c3624720406d10c85b2fe62c4bbf8f9eddbeac1c') { throw 'Source checksum mismatch' }
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne '7eb0f4133b82076c0c7dd741a5e47e000d62d9e34bc026723fa19bbb7c99fba3') { throw 'Source checksum mismatch' }
           Expand-Archive $zip work/source
           $root=(Resolve-Path work/source/AccommodationTestManager-Beta2-Update3).Path
           "ATM_SOURCE=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
