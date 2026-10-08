@@ -1,0 +1,19 @@
+{
+  "Id": "canvas",
+  "Version": 1,
+  "Description": "User-supplied Canvas scope, normalized for Edge host filters. Broad host filters include subdomains; review before real exams.",
+  "UrlPatterns": [
+    "https://canvas.hws.edu",
+    "https://sso.canvaslms.com",
+    "https://sso.hws.edu",
+    "https://hws.edu",
+    "https://instructure.com",
+    "https://login.microsoftonline.com",
+    "https://microsoftonline.com",
+    "https://msauth.net",
+    "https://msftauth.net",
+    "https://office.com",
+    "https://office365.com",
+    "https://microsoft.com"
+  ]
+}
