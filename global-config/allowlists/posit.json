@@ -1,0 +1,15 @@
+{
+  "Id": "posit",
+  "Version": 1,
+  "Description": "Initial sign-in domains observed; authenticated project flow still requires live testing.",
+  "UrlPatterns": [
+    "https://posit.cloud",
+    "https://login.posit.cloud",
+    "https://login.rstudio.cloud",
+    "https://sso.hws.edu",
+    "https://login.microsoftonline.com",
+    "https://microsoftonline.com",
+    "https://msauth.net",
+    "https://msftauth.net"
+  ]
+}
