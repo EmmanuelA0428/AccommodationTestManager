@@ -1,0 +1,83 @@
+name: Build Beta 2 Update 1
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update1:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prepare verified Update 1 sources
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $zip='AccommodationTestManager-Beta2-Update1.zip'
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne '54a33cd1730853ab2178aaf8c92177056bfe03f72d5e2ed933208478187431ff') { throw 'Source checksum mismatch' }
+          Expand-Archive $zip work/source
+          $root=(Resolve-Path work/source/AccommodationTestManager-Beta2-Update1).Path
+          "ATM_SOURCE=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          dotnet run --project "$root/DeveloperTests/BetaTests.csproj" -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Regression tests failed' }
+          & pwsh -NoProfile -File "$root/DeveloperTests/NetworkHelper.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Mocked network tests failed' }
+          & pwsh -NoProfile -File "$root/Setup/Setup-Guards.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Setup guards failed' }
+          dotnet publish "$root/AccommodationTestManager/AccommodationTestManager.csproj" -c Release -r win-x64 --self-contained true -p:EnableWindowsTargeting=true -p:DebugType=None -p:DebugSymbols=false -o work/payload
+          if ($LASTEXITCODE -ne 0) { throw 'Publish failed' }
+          New-Item -ItemType Directory work/payload/SetupSupport -Force | Out-Null
+          Copy-Item "$root/Setup/Uninstall-OneClick.ps1" work/payload/SetupSupport/
+          Copy-Item "$root/Emergency-Restore.ps1" work/payload/SetupSupport/
+      - name: Compile Update 1 setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          choco install nsis --version=3.11 -y --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS install failed' }
+          $compiler="${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          $source="$env:ATM_SOURCE\Setup"
+          $payload=(Resolve-Path work/payload).Path
+          $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta2-Update1.exe'
+          $script="$source\Setup-Portable.nsi"
+          $text=[IO.File]::ReadAllText($script).Replace('${PAYLOAD_DIR}/','${PAYLOAD_DIR}\').Replace('${SOURCE_DIR}/','${SOURCE_DIR}\').Replace('Docs/*','Docs\*')
+          $text=$text.Replace("nsExec::ExecToLog '","ExecWait '").Replace("'`r`n Pop `$Result","' `$Result").Replace("'`n Pop `$Result","' `$Result")
+          $text=$text.Replace('-NoProfile -ExecutionPolicy','-NoProfile -WindowStyle Hidden -ExecutionPolicy')
+          $text=$text.Replace('Sysnative\WindowsPowerShell','System32\WindowsPowerShell')
+          $text=$text.Replace(" ExecWait '"," `${DisableX64FSRedirection}`r`n ExecWait '")
+          $text=$text.Replace("' `$Result","' `$Result`r`n `${EnableX64FSRedirection}")
+          [IO.File]::WriteAllText($script,$text,(New-Object Text.UTF8Encoding($true)))
+          & $compiler /V3 "/DSOURCE_DIR=$source" "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" $script
+          if ($LASTEXITCODE -ne 0) { throw 'Setup compile failed' }
+      - name: Native installation and PIN protocol checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta2-Update1.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Install failed: $($p.ExitCode)" }
+          $root="$env:ProgramFiles\AccommodationTestManagerBeta2"
+          foreach ($file in @('AccommodationTestManager.exe','coreclr.dll','Scripts\Beta2Restrictions.ps1','Scripts\Beta2PinReset.ps1','setup-installed-files.json','Uninstall.exe')) {
+            if (!(Test-Path "$root\$file")) { throw "Missing installed file: $file" }
+          }
+          if (!(Test-Path "$env:PUBLIC\Desktop\Accommodation Test Manager Beta 2.lnk")) { throw 'Desktop shortcut missing' }
+          & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$env:ATM_SOURCE\DeveloperTests\PinProtocol.Tests.ps1" -Helper "$root\Scripts\Beta2PinReset.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Native PIN authorization protocol failed' }
+          $p=Start-Process "$root\Uninstall.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Uninstall failed: $($p.ExitCode)" }
+          Start-Sleep 3
+          if (Test-Path "$root\AccommodationTestManager.exe") { throw 'App was not uninstalled' }
+          'Native install, PIN protocol and uninstall checks passed. No Word, test restrictions, or PIN change executed.'
+      - name: Publish Update 1 prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $file='AccommodationTestManager-Setup-Beta2-Update1.exe'
+          $hash=(Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $file" | Set-Content "$file.sha256" -Encoding ascii
+          gh release create v1.0.0-beta.2.2 $file "$file.sha256" AccommodationTestManager-Beta2-Update1.zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title 'Beta 2 — Update 1' --prerelease --notes-file "$env:ATM_SOURCE\RELEASE-NOTES.md"
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
+          "Published SHA256: $hash"
