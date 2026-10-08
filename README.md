@@ -4,7 +4,7 @@ Windows accommodation testing beta. **Public download; synthetic testing only.**
 
 ## Install with one setup file
 
-[**Download the Beta 2 Hotfix 1 setup EXE**](https://github.com/EmmanuelA0428/AccommodationTestManager/releases/download/v1.0.0-beta.2.1/AccommodationTestManager-Setup-Beta2-Hotfix1.exe)
+[**Download the Beta 2 Update 1 setup EXE**](https://github.com/EmmanuelA0428/AccommodationTestManager/releases/download/v1.0.0-beta.2.2/AccommodationTestManager-Setup-Beta2-Update1.exe)
 
 1. Download the EXE (no GitHub sign-in needed).
 2. Double-click it, approve Windows administrator authorization, and follow the short wizard. App, helper and required .NET runtime are bundled together; no ZIP extraction or manual PowerShell installation.
@@ -15,9 +15,17 @@ Requires Windows 11 x64, Edge, and desktop Word for Word mode. The runtime is bu
 
 **Unsigned beta:** Windows may show Unknown Publisher or SmartScreen warnings. Have IT review/approve deployment. Do not disable security requirements to make it run. This is a GitHub download, not a Microsoft Store-certified app.
 
+## Update 1 improvements
+
+Word save/recovery file sharing and stable-capture checks; compact one-row student controls; dark-mode fixes and quick theme toggle; Security summary merged into Review; editable auto-filled asset tag; administrator-authorized forgotten-PIN reset; Settings > Updates for later compatible Beta 2 releases. Staff names remain manually entered.
+
+Update 1 must first be installed with its EXE. Older versions do not have the new update button. See the release notes for preserving/recovering an unfinished session when the old Finish is broken. Never delete a session just to update.
+
+Windows automated tests use mock Word; actual Word COM, WPF visuals and the real standard-account/separate-admin PIN reset must be checked with a dummy exam on Windows 11.
+
 ## Updates and uninstall
 
-Close the app normally and restore unresolved machine controls first. Setup refuses pending/corrupt restriction snapshots. Existing local configuration, exam sessions and protected helper snapshots are preserved. No automatic updater is included.
+Close the app normally and restore unresolved machine controls first. Setup refuses pending/corrupt restriction snapshots. Existing local configuration, exam sessions and protected helper snapshots are preserved. A manual Check for updates section is included in Settings. It verifies download integrity, retains Windows Internet-origin marking, and requires staff/admin approval. No silent automatic updates.
 
 ## Important limitations
 
@@ -25,6 +33,6 @@ No OS app lockdown, protected student-data storage, secure staff identity, compr
 
 ## Developer files
 
-The complete Visual Studio project remains inside **AccommodationTestManager-Beta2-Hotfix1.zip** under Releases. GitHub's automatic Source code ZIP is not the full app project. Normal staff installation should use the EXE above.
+The complete Visual Studio project remains inside **AccommodationTestManager-Beta2-Update1.zip** under Releases. GitHub's automatic Source code ZIP is not the full app project. Normal staff installation should use the EXE above.
 
 Never upload student documents, runtime sessions, browser profiles, saved staff PIN configuration or credentials to this repository.
