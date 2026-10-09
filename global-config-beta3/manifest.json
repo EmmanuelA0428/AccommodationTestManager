@@ -1,0 +1,20 @@
+{
+  "SchemaVersion": 1,
+  "Version": 1,
+  "CanvasUrl": "https://canvas.hws.edu/",
+  "PositUrl": "https://posit.cloud/",
+  "SaveIntervalSeconds": 60,
+  "SnapshotIntervalSeconds": 180,
+  "MaximumRecoveryCopies": 5,
+  "DefaultTimeLimitMinutes": null,
+  "Allowlists": [
+    {
+      "Id": "canvas",
+      "Sha256": "272f10214959ceaf2a66eda79bc38192ab5872c6433e1facaa88564e21df6744"
+    },
+    {
+      "Id": "posit",
+      "Sha256": "d56e48fe8b5b1486f8c4ff4751d9ed2cd35e7baec072cb2c6adf984fdeed7478"
+    }
+  ]
+}

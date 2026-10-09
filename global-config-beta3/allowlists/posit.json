@@ -1,0 +1,14 @@
+{
+  "Id": "posit",
+  "Version": 1,
+  "Description": "Beta 3 narrow starter scope; exact exam/login hosts and explicitly reviewed authentication subdomains. Validate complete sign-in and exam/project flow on the testing laptop.",
+  "UrlPatterns": [
+    "https://posit.cloud",
+    "https://login.posit.cloud",
+    "https://login.rstudio.cloud",
+    "https://sso.hws.edu",
+    "https://login.microsoftonline.com",
+    "https://*.msauth.net",
+    "https://*.msftauth.net"
+  ]
+}
