@@ -1,3 +1,15 @@
+> **Beta 3 development candidate — Windows validation pending.**
+> Older Beta 2 restriction helpers contain a registry-write defect that can erase unrelated values. Do not run their restriction/restore actions. Preserve existing snapshots; affected laptops need independent baseline review/repair. The Beta 3 candidate uses a corrected writer but cannot reconstruct unrecorded erased values.
+
+## Beta 3 candidate
+- [Beta 3 changes and validation status](BETA3.md)
+- [Beta 3 source archive](AccommodationTestManager-Beta3.zip) — source only, not an installer.
+- [Source SHA-256](AccommodationTestManager-Beta3.zip.sha256)
+
+A validation-only Windows workflow will build a candidate installer artifact after tests pass. No Beta 3 public installer is published yet. The older releases below are historical, not a recommendation to run the defective helper.
+
+---
+
 # Accommodation Test Manager
 
 Windows accommodation testing beta. **Public download; synthetic testing only.**
