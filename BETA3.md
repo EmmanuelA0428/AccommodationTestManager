@@ -1,40 +1,24 @@
-# Accommodation Test Manager — Beta 3
+# Beta 3 — published testing prerelease
 
-**Local development build: not published, signed, or cleared for real examinations.** Windows 11 x64, .NET 10 WPF. GitHub publication is deliberately deferred.
+Download **AccommodationTestManager-Setup-Beta3.exe** below. It installs the app, bundled .NET runtime and protected helper together; no separate PowerShell installation. Install from the standard testing account and authorize setup with administrator credentials. Run the app normally afterward. **First Beta 3 installation uses this standalone EXE; Beta 2 update checks do not migrate release channels.**
 
-## What changed
-- Non-destructive, typed registry writes, full end-of-operation policy verification, and preservation checks for unrelated registry properties and subkeys.
-- Older helper detection and a legacy-review gate. Setup can install the corrected helper in maintenance mode for known older snapshots, archiving evidence without applying or restoring restrictions.
-- Separate narrow Canvas/Posit allowlists. Exact hosts are the default; subdomains require explicit wildcard entries. No broad Microsoft, Office or institutional-domain access by default.
-- Online handoff requires a fresh Edge `edge://policy` JSON export, exact required effective policies, and staff live checks of off-list blocking, login, AI UI and removable storage.
-- Full-screen Edge startup; compact student toolbar and staff PIN handoff retained.
-- Windows-supported Edge AI policy selection based on installed Edge version. This targets Edge features only, not AI embedded inside allowed websites.
-- Separate Beta 3 global configuration endpoint and last-known-good cache. Network/config errors retain local fallback. These GitHub files are staged locally, not live yet.
+## Changes
+- Non-destructive typed registry writer; full selected-policy verification and preservation checks for unrelated values/subkeys.
+- Legacy evidence archive/assessment gate; old helper must not be invoked.
+- Separate narrow Canvas and Posit allowlists, with exact hosts and reviewed authentication subdomains.
+- Fresh effective Edge policy export and staff live browser checks before online handoff.
+- Full-screen Edge and Windows-supported, version-aware Edge AI policy plan; not in-site AI blocking.
+- Beta 3 global config at global-config-beta3/, with validated last-known-good offline cache.
+- Compact student controls, app-PIN staff handoff, Word saving/recovery and Check for updates retained.
 
-## Important: affected Beta 2 laptop
-The old registry writer could erase unrelated values while writing selected policies. Its snapshots do **not** contain a complete prior baseline. Installing Beta 3 does not reconstruct that lost information. Do not keep running old restrictions or the old restore helper. Preserve snapshots and independently review/repair affected branches with a qualified Windows administrator and a known-good baseline. Beta 3 offers read-only assessment and selected recorded-value restoration; approval is an administrator attestation, not proof that unrecorded values were recovered.
+## Validation passed
+[Windows validation run](https://github.com/EmmanuelA0428/AccommodationTestManager/actions/runs/37958905869): developer/mocked checks, real isolated HKCU registry provider checks in PowerShell 7 and Windows PowerShell 5.1, self-contained installer build, native installation/PIN protocol/uninstall, and synthetic WPF UI tests. Live public global-config/list hashes and restart cache probe also passed.
 
-## One installer — after Windows validation
-The planned `AccommodationTestManager-Setup-Beta3.exe` installs the app, private .NET runtime and protected helper together. Open setup from the standard testing account and authorize installation with separate administrator credentials. Run the installed app normally, **not** elevated. No separate helper install or PowerShell typing is intended.
+**Still required:** real laptop Word saving/recovery/export, Edge policy/export recognition, Canvas/Posit sign-in/project dependencies, USB/network/UAC behavior and interruption recovery using dummy exams. This is not OS application lockdown or protected exam storage; full-screen/app PIN is not a Windows security boundary. No production-exam approval is implied.
 
-The first Beta 3 installation must use its standalone setup: older Beta 2 update checks only recognize the Beta 2 release channel. Beta 3 retains Check for updates for subsequent compatible releases. Setup preserves settings, sessions and snapshots. Old folder/product identifiers remain intentionally stable for recovery compatibility; they are not a fresh data reset.
+## Important legacy-device warning
+Older Beta 2 registry writes could erase unrelated values. Their snapshots are incomplete and cannot reconstruct unrecorded missing data. Do not repeat old restriction/restore actions. Preserve snapshots and independently review/repair affected branches from a known-good baseline with a qualified Windows administrator. This setup archives evidence and installs the corrected helper; it does not repair unrecorded erased values. New controls remain gated until independent review is confirmed.
 
-## Browser handoff
-1. Start a synthetic online session. Close Edge normally, including background instances; diagnostics show remaining processes before UAC.
-2. In the exam Edge window, visit `edge://policy`, reload policies and Export to JSON.
-3. Import that fresh export in the app's browser verification window.
-4. Check an off-list site receives a policy block, the required login/test flow works, Edge AI controls are unavailable, and USB storage is inaccessible. Restore the exam tab and full-screen mode.
-5. Staff approves handoff. A missing/ignored/mismatched policy blocks approval.
+Unsigned installer: Windows may show Unknown Publisher/SmartScreen warnings. Do not disable Windows protections. Do not upload student data, runtime sessions, PINs or credentials to GitHub.
 
-The export is staff-supplied evidence, not a signed browser attestation. Live checks are staff confirmations, not automated navigation tests. Full-screen and the PIN overlay are **not** OS application lockdown. Students knowing the Windows account password can unlock Windows; the app PIN only protects app actions.
-
-## Configuration
-Staff edits local settings and allowlists through Settings. Staged central files are in `GlobalConfiguration`; they belong at `global-config-beta3/` in the existing repository later. Never upload PINs, accounts, student data, runtime sessions or protected snapshots. New global config is validated and cached separately from the old broad Beta 2 cache. Apply changes between sessions, not mid-test. Required authentication/project dependencies still need real-laptop verification; add reviewed specific hosts rather than broad roots.
-
-## Validation and limits
-See `VALIDATION.md` and `TEST-CHECKLIST.md`. Local compilation and mocked tests passed, but native Windows registry/WPF/installer/UAC/Word/Edge tests are pending. Edge >=139 is required for the selected baseline AI policies; applicability varies by version/profile. Edge >=148 adds newer Copilot controls. Any ignored/unsupported required policy or remaining AI UI must block handoff, not be treated as success.
-
-No OS app lockdown, protected exam-data broker, secure individual staff identity, in-site AI enforcement, or central session portal is supplied. Use dummy data only until device acceptance and institutional security review are complete.
-
-## Development / deferred release
-Open `AccommodationTestManager.sln` with .NET 10 WPF tools. `ReleasePreparation/build-beta3.yml` is a staged manual Windows CI workflow. It builds an installer artifact only after native tests; it does not automatically publish a public release. Copy the source/workflow/config to GitHub and run validation only when publication is authorized. No download link for this Beta 3 has been published yet.
+Installer SHA-256: `5e624dfa229da179c0a799bafa1572e8383748735aea9ea67cc53b74a87a4551`
