@@ -1,0 +1,118 @@
+name: Validate and package Beta 3 (no publication)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  beta3:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Prepare verified Beta 3 sources
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $zip='AccommodationTestManager-Beta3.zip'
+          $expected=((Get-Content "$zip.sha256" -Raw).Trim() -split '\s+')[0]
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $expected) { throw 'Source checksum mismatch' }
+          Expand-Archive $zip work/source
+          $root=(Resolve-Path work/source/AccommodationTestManager-Beta3).Path
+          "ATM_SOURCE=$root" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          dotnet run --project "$root/DeveloperTests/BetaTests.csproj" -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Regression tests failed' }
+          & pwsh -NoProfile -File "$root/DeveloperTests/NetworkHelper.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Mocked network tests failed' }
+          & pwsh -NoProfile -File "$root/DeveloperTests/HelperDiagnostics.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Helper diagnostics regression failed' }
+          & pwsh -NoProfile -File "$root/Setup/Setup-Guards.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Setup guards failed' }
+          & pwsh -NoProfile -File "$root/DeveloperTests/RegistryProvider.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Native PS7 registry tests failed' }
+          & "$env:WINDIR/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$root/DeveloperTests/RegistryProvider.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Native PS5 registry tests failed' }
+          foreach($script in Get-ChildItem $root -Recurse -Filter '*.ps1' | Where-Object {$_.FullName -notmatch '\\(bin|obj)\\'}) {
+            $tokens=$null;$errors=$null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($script.FullName,[ref]$tokens,[ref]$errors)
+            if($errors.Count){throw "Script parse failed: $($script.FullName)"}
+          }
+          dotnet publish "$root/AccommodationTestManager/AccommodationTestManager.csproj" -c Release -r win-x64 --self-contained true -p:EnableWindowsTargeting=true -p:DebugType=None -p:DebugSymbols=false -o work/payload
+          if ($LASTEXITCODE -ne 0) { throw 'Publish failed' }
+          New-Item -ItemType Directory work/payload/SetupSupport -Force | Out-Null
+          Copy-Item "$root/Setup/Uninstall-OneClick.ps1" work/payload/SetupSupport/
+          Copy-Item "$root/Emergency-Restore.ps1" work/payload/SetupSupport/
+      - name: Compile Beta 3 setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          for ($attempt=0;$attempt -lt 3;$attempt++) {
+            choco install nsis --version=3.11 -y --no-progress
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep 15
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS install failed' }
+          $compiler="${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          $source="$env:ATM_SOURCE\Setup"
+          $payload=(Resolve-Path work/payload).Path
+          $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta3.exe'
+          $script="$source\Setup-Portable.nsi"
+          $text=[IO.File]::ReadAllText($script).Replace('${PAYLOAD_DIR}/','${PAYLOAD_DIR}\').Replace('${SOURCE_DIR}/','${SOURCE_DIR}\').Replace('Docs/*','Docs\*')
+          $text=$text.Replace("nsExec::ExecToLog '","ExecWait '").Replace("'`r`n Pop `$Result","' `$Result").Replace("'`n Pop `$Result","' `$Result")
+          $text=$text.Replace('-NoProfile -ExecutionPolicy','-NoProfile -WindowStyle Hidden -ExecutionPolicy')
+          $text=$text.Replace('Sysnative\WindowsPowerShell','System32\WindowsPowerShell')
+          $text=$text.Replace(" ExecWait '"," `${DisableX64FSRedirection}`r`n ExecWait '")
+          $text=$text.Replace("' `$Result","' `$Result`r`n `${EnableX64FSRedirection}")
+          [IO.File]::WriteAllText($script,$text,(New-Object Text.UTF8Encoding($true)))
+          & $compiler /V3 "/DSOURCE_DIR=$source" "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" $script
+          if ($LASTEXITCODE -ne 0) { throw 'Setup compile failed' }
+      - name: Native installation and PIN protocol checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta3.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Install failed: $($p.ExitCode)" }
+          $root="$env:ProgramFiles\AccommodationTestManagerBeta2"
+          foreach ($file in @('AccommodationTestManager.exe','coreclr.dll','Scripts\Beta2Restrictions.ps1','Scripts\Beta2PinReset.ps1','setup-installed-files.json','Uninstall.exe')) {
+            if (!(Test-Path "$root\$file")) { throw "Missing installed file: $file" }
+          }
+          if (!(Test-Path "$env:PUBLIC\Desktop\Accommodation Test Manager Beta 3.lnk")) { throw 'Desktop shortcut missing' }
+          & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$env:ATM_SOURCE\DeveloperTests\HelperDiagnostics.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Native PS5 diagnostic regression failed' }
+          & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$env:ATM_SOURCE\DeveloperTests\PinProtocol.Tests.ps1" -Helper "$root\Scripts\Beta2PinReset.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Native PIN authorization protocol failed' }
+          $p=Start-Process "$root\Uninstall.exe" -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Uninstall failed: $($p.ExitCode)" }
+          Start-Sleep 3
+          if (Test-Path "$root\AccommodationTestManager.exe") { throw 'App was not uninstalled' }
+          'Native install, PIN protocol and uninstall checks passed. No Word, test restrictions, or PIN change executed.'
+      - name: Native WPF layout and navigation checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          dotnet build "$env:ATM_SOURCE/NativeUiTests/UiSmoke.csproj" -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'Native UI harness failed to build' }
+          $out="$env:ATM_SOURCE/NativeUiTests/bin/Release/net10.0-windows"
+          Copy-Item "$env:ATM_SOURCE/AccommodationTestManager/Configuration" $out -Recurse -Force
+          dotnet "$out/UiSmoke.dll"
+          if ($LASTEXITCODE -ne 0) { throw 'Native WPF UI checks failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Beta3-synthetic-UI
+          path: Beta3-*-synthetic-ui.png
+          if-no-files-found: ignore
+      - name: Produce reviewed installer artifact (not a release)
+        shell: pwsh
+        run: |
+          $file='AccommodationTestManager-Setup-Beta3.exe'
+          $hash=(Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $file" | Set-Content "$file.sha256" -Encoding ascii
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Beta3-candidate-setup
+          path: |
+            AccommodationTestManager-Setup-Beta3.exe
+            AccommodationTestManager-Setup-Beta3.exe.sha256
