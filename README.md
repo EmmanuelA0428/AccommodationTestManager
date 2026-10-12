@@ -2,11 +2,11 @@
 
 Windows 11 x64 accommodation testing app. **Synthetic/dummy tests only; not a secure production exam kiosk.**
 
-## Download Beta 3 — one setup file
+## Download Beta 3.2 — one setup file
 
-[Download AccommodationTestManager-Setup-Beta3.exe](https://github.com/EmmanuelA0428/AccommodationTestManager/releases/download/v1.0.0-beta.3.1/AccommodationTestManager-Setup-Beta3.exe)
+[Download AccommodationTestManager-Setup-Beta3.exe](https://github.com/EmmanuelA0428/AccommodationTestManager/releases/download/v1.0.0-beta.3.2/AccommodationTestManager-Setup-Beta3.exe)
 
-[Release notes and all assets](https://github.com/EmmanuelA0428/AccommodationTestManager/releases/tag/v1.0.0-beta.3.1) · [Installer SHA-256](https://github.com/EmmanuelA0428/AccommodationTestManager/releases/download/v1.0.0-beta.3.1/AccommodationTestManager-Setup-Beta3.exe.sha256)
+[Release notes and all assets](https://github.com/EmmanuelA0428/AccommodationTestManager/releases/tag/v1.0.0-beta.3.2) · [Installer SHA-256](https://github.com/EmmanuelA0428/AccommodationTestManager/releases/download/v1.0.0-beta.3.2/AccommodationTestManager-Setup-Beta3.exe.sha256)
 
 Public download: no GitHub sign-in required. The setup installs the app, private .NET runtime and protected helper together. No separate PowerShell installation or folder assembly. Install from the standard testing account, using separate administrator credentials when prompted; run the installed app normally afterward. **The first Beta 3 install needs this EXE; old Beta 2 update checks do not switch channels.**
 
@@ -16,11 +16,13 @@ Unsigned beta: Windows may show Unknown Publisher/SmartScreen warnings. Do not d
 
 Older restriction writers could erase unrelated registry values. Do not run old restriction/restore actions. Preserve old snapshots. Their recorded values are incomplete; the Beta 3 installer cannot reconstruct unrecorded erased values. Affected devices require independent baseline review/repair by a qualified Windows administrator; new controls stay gated until review is confirmed.
 
-## Beta 3 status
+## Beta 3.2 status
 
-[Changes and limitations](BETA3.md) · [Successful Windows validation](https://github.com/EmmanuelA0428/AccommodationTestManager/actions/runs/37958905869)
+[Beta 3.2 changes and limitations](BETA3.2.md) · [Successful Windows validation](https://github.com/EmmanuelA0428/AccommodationTestManager/actions/runs/38286968150)
 
-Passed: isolated native registry tests in both PowerShell versions, installer build/install/PIN/uninstall checks, synthetic WPF UI, app/mock regressions, and live public configuration/cache validation. Installer was anonymously downloaded and hash-verified after publication.
+Passed: 176 developer regressions (mock Word/live machine verifier), isolated native registry tests in both PowerShell versions, installer build/install/PIN/uninstall checks, synthetic WPF UI, app/mock regressions, and live public configuration/cache validation. Installer was anonymously downloaded and hash-verified after publication.
+
+Automatic Word startup is opt-in: in Settings → Test defaults, turn off **Manual preflight checks** to exercise the verified Word startup path on a synthetic test laptop. Manual checks default on. Re-enable them before Canvas, Posit, or custom-app tests; automatic effective browser verification is not implemented. PIN-only privileged machine operations are not implemented; Windows admin authorization remains required.
 
 Still required: dummy-exam testing of real Word saves/recovery/export, actual Edge policy exports and AI UI, Canvas/Posit sign-in/project dependencies, USB/network/UAC and interruption recovery on the testing laptop. Full-screen/app PIN is not OS lockdown; in-site AI and protected exam storage are not implemented.
 
