@@ -1,6 +1,6 @@
 {
   "SchemaVersion": 1,
-  "Version": 1,
+  "Version": 2,
   "CanvasUrl": "https://canvas.hws.edu/",
   "PositUrl": "https://posit.cloud/",
   "SaveIntervalSeconds": 60,
@@ -14,7 +14,7 @@
     },
     {
       "Id": "posit",
-      "Sha256": "d56e48fe8b5b1486f8c4ff4751d9ed2cd35e7baec072cb2c6adf984fdeed7478"
+      "Sha256": "61df825226b16d077ee7a27cb39302b9d95ccbb8a3a3568bd60ce6556ee8cdf5"
     }
   ]
 }
