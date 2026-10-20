@@ -1,4 +1,4 @@
-name: Validate and package Beta 4 (no publication)
+name: Validate and package Beta 4.1 service hotfix
 on:
   workflow_dispatch:
 permissions:
@@ -59,7 +59,7 @@ jobs:
           $compiler="${env:ProgramFiles(x86)}\NSIS\makensis.exe"
           $source="$env:ATM_SOURCE\Setup"
           $payload=(Resolve-Path work/payload).Path
-          $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta4.exe'
+          $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta4.1.exe'
           $script="$source\Setup-Portable.nsi"
           $text=[IO.File]::ReadAllText($script).Replace('${PAYLOAD_DIR}/','${PAYLOAD_DIR}\').Replace('${SOURCE_DIR}/','${SOURCE_DIR}\').Replace('Docs/*','Docs\*')
           $text=$text.Replace("nsExec::ExecToLog '","ExecWait '").Replace("'`r`n Pop `$Result","' `$Result").Replace("'`n Pop `$Result","' `$Result")
@@ -70,11 +70,11 @@ jobs:
           [IO.File]::WriteAllText($script,$text,(New-Object Text.UTF8Encoding($true)))
           & $compiler /V3 "/DSOURCE_DIR=$source" "/DPAYLOAD_DIR=$payload" "/DOUTPUT_FILE=$output" $script
           if ($LASTEXITCODE -ne 0) { throw 'Setup compile failed' }
-      - name: Native installation and PIN protocol checks
+      - name: Native installation and standard-user broker checks
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta4.exe" -ArgumentList '/S' -Wait -PassThru
+          $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta4.1.exe" -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Install failed: $($p.ExitCode)" }
           $root="$env:ProgramFiles\AccommodationTestManagerBeta2"
           foreach ($file in @('AccommodationTestManager.exe','coreclr.dll','Scripts\Beta2Restrictions.ps1','Scripts\Beta2PinReset.ps1','setup-installed-files.json','Uninstall.exe','Broker\AtmMachineBroker.exe')) {
@@ -86,6 +86,36 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Native PS5 diagnostic regression failed' }
           & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$env:ATM_SOURCE\DeveloperTests\PinProtocol.Tests.ps1" -Helper "$root\Scripts\Beta2PinReset.ps1"
           if ($LASTEXITCODE -ne 0) { throw 'Native PIN authorization protocol failed' }
+          # Genuine non-admin integration test, not an elevated mock. Synthetic
+          # runner-only PIN/user; never run test restrictions or upload credentials.
+          dotnet publish "$env:ATM_SOURCE/MachineBrokerTests/BrokerSmoke.csproj" -c Release -r win-x64 --self-contained true -o work/broker-smoke
+          if ($LASTEXITCODE -ne 0) { throw 'Broker regression harness publish failed' }
+          $smoke="$env:ProgramFiles\AtmBrokerSmoke"
+          New-Item -ItemType Directory $smoke -Force | Out-Null
+          Copy-Item work/broker-smoke/* $smoke -Recurse -Force
+          $pin='739248165'
+          $salt=[Security.Cryptography.RandomNumberGenerator]::GetBytes(16)
+          $hash=[Security.Cryptography.Rfc2898DeriveBytes]::Pbkdf2([Text.Encoding]::UTF8.GetBytes($pin),$salt,100000,[Security.Cryptography.HashAlgorithmName]::SHA256,32)
+          @{Salt=[Convert]::ToBase64String($salt);Hash=[Convert]::ToBase64String($hash)} | ConvertTo-Json -Compress | Set-Content "$env:ProgramData\AccommodationTestingBeta2\Broker\credential.json" -Encoding utf8NoBOM
+          $user='AtmBrokerPilot'
+          $secret=ConvertTo-SecureString ('Atm!'+[Guid]::NewGuid().ToString('N')+'9z') -AsPlainText -Force
+          New-LocalUser -Name $user -Password $secret -Description 'Ephemeral standard-account service regression' | Out-Null
+          Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $user
+          $logs="$env:PUBLIC\AtmBrokerSmoke"
+          New-Item -ItemType Directory $logs -Force | Out-Null
+          & icacls.exe $logs /grant '*S-1-5-32-545:(OI)(CI)M' | Out-Null
+          if($LASTEXITCODE -ne 0){throw 'Could not prepare synthetic test output'}
+          try {
+            $credential=[pscredential]::new("$env:COMPUTERNAME\$user",$secret)
+            $p=Start-Process "$smoke\BrokerSmoke.exe" -ArgumentList $pin -Credential $credential -LoadUserProfile -Wait -PassThru -RedirectStandardOutput "$logs\stdout.txt" -RedirectStandardError "$logs\stderr.txt"
+            Get-Content "$logs\stdout.txt"
+            Get-Content "$logs\stderr.txt"
+            if($p.ExitCode -ne 0){throw "Standard-account broker regression failed: $($p.ExitCode)"}
+          } finally {
+            Remove-LocalUser -Name $user -ErrorAction SilentlyContinue
+            Remove-Item $smoke -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item $logs -Recurse -Force -ErrorAction SilentlyContinue
+          }
           $p=Start-Process "$root\Uninstall.exe" -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Uninstall failed: $($p.ExitCode)" }
           Start-Sleep 3
@@ -111,12 +141,12 @@ jobs:
       - name: Produce reviewed installer artifact (not a release)
         shell: pwsh
         run: |
-          $file='AccommodationTestManager-Setup-Beta4.exe'
+          $file='AccommodationTestManager-Setup-Beta4.1.exe'
           $hash=(Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $file" | Set-Content "$file.sha256" -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
-          name: Beta4-candidate-setup
+          name: Beta4.1-candidate-setup
           path: |
-            AccommodationTestManager-Setup-Beta4.exe
-            AccommodationTestManager-Setup-Beta4.exe.sha256
+            AccommodationTestManager-Setup-Beta4.1.exe
+            AccommodationTestManager-Setup-Beta4.1.exe.sha256
