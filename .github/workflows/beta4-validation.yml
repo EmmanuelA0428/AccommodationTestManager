@@ -59,7 +59,7 @@ jobs:
           $compiler="${env:ProgramFiles(x86)}\NSIS\makensis.exe"
           $source="$env:ATM_SOURCE\Setup"
           $payload=(Resolve-Path work/payload).Path
-          $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta4.3.exe'
+          $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta4.4.exe'
           $script="$source\Setup-Portable.nsi"
           $text=[IO.File]::ReadAllText($script).Replace('${PAYLOAD_DIR}/','${PAYLOAD_DIR}\').Replace('${SOURCE_DIR}/','${SOURCE_DIR}\').Replace('Docs/*','Docs\*')
           $text=$text.Replace("nsExec::ExecToLog '","ExecWait '").Replace("'`r`n Pop `$Result","' `$Result").Replace("'`n Pop `$Result","' `$Result")
@@ -74,7 +74,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta4.3.exe" -ArgumentList '/S' -Wait -PassThru
+          $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta4.4.exe" -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Install failed: $($p.ExitCode)" }
           $root="$env:ProgramFiles\AccommodationTestManagerBeta2"
           foreach ($file in @('AccommodationTestManager.exe','coreclr.dll','Scripts\Beta2Restrictions.ps1','Scripts\Beta2PinReset.ps1','setup-installed-files.json','Uninstall.exe','Broker\AtmMachineBroker.exe')) {
@@ -141,12 +141,12 @@ jobs:
       - name: Produce reviewed installer artifact (not a release)
         shell: pwsh
         run: |
-          $file='AccommodationTestManager-Setup-Beta4.3.exe'
+          $file='AccommodationTestManager-Setup-Beta4.4.exe'
           $hash=(Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $file" | Set-Content "$file.sha256" -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
-          name: Beta4.3-candidate-setup
+          name: Beta4.4-candidate-setup
           path: |
-            AccommodationTestManager-Setup-Beta4.3.exe
-            AccommodationTestManager-Setup-Beta4.3.exe.sha256
+            AccommodationTestManager-Setup-Beta4.4.exe
+            AccommodationTestManager-Setup-Beta4.4.exe.sha256
