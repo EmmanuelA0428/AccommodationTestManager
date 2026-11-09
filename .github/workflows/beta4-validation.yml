@@ -28,6 +28,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Mocked network tests failed' }
           & pwsh -NoProfile -File "$root/DeveloperTests/HelperDiagnostics.Tests.ps1"
           if ($LASTEXITCODE -ne 0) { throw 'Helper diagnostics regression failed' }
+          & pwsh -NoProfile -File "$root/Setup/Edge-BackgroundPolicy.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Edge baseline PS7 regression failed' }
+          & "$env:WINDIR/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$root/Setup/Edge-BackgroundPolicy.Tests.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Edge baseline PS5 regression failed' }
           & pwsh -NoProfile -File "$root/Setup/Setup-Guards.Tests.ps1"
           if ($LASTEXITCODE -ne 0) { throw 'Setup guards failed' }
           & pwsh -NoProfile -File "$root/DeveloperTests/RegistryProvider.Tests.ps1"
@@ -45,6 +49,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Broker publish failed' }
           New-Item -ItemType Directory work/payload/SetupSupport -Force | Out-Null
           Copy-Item "$root/Setup/Uninstall-OneClick.ps1" work/payload/SetupSupport/
+          Copy-Item "$root/Setup/Edge-BackgroundPolicy.ps1" work/payload/SetupSupport/
           Copy-Item "$root/Emergency-Restore.ps1" work/payload/SetupSupport/
       - name: Compile Beta 4 setup
         shell: pwsh
@@ -59,7 +64,7 @@ jobs:
           $compiler="${env:ProgramFiles(x86)}\NSIS\makensis.exe"
           $source="$env:ATM_SOURCE\Setup"
           $payload=(Resolve-Path work/payload).Path
-          $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta4.5.exe'
+          $output=Join-Path $env:GITHUB_WORKSPACE 'AccommodationTestManager-Setup-Beta4.6.exe'
           $script="$source\Setup-Portable.nsi"
           $text=[IO.File]::ReadAllText($script).Replace('${PAYLOAD_DIR}/','${PAYLOAD_DIR}\').Replace('${SOURCE_DIR}/','${SOURCE_DIR}\').Replace('Docs/*','Docs\*')
           $text=$text.Replace("nsExec::ExecToLog '","ExecWait '").Replace("'`r`n Pop `$Result","' `$Result").Replace("'`n Pop `$Result","' `$Result")
@@ -74,12 +79,17 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta4.5.exe" -ArgumentList '/S' -Wait -PassThru
+          $p=Start-Process "$env:GITHUB_WORKSPACE\AccommodationTestManager-Setup-Beta4.6.exe" -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Install failed: $($p.ExitCode)" }
           $root="$env:ProgramFiles\AccommodationTestManagerBeta2"
           foreach ($file in @('AccommodationTestManager.exe','coreclr.dll','Scripts\Beta2Restrictions.ps1','Scripts\Beta2PinReset.ps1','setup-installed-files.json','Uninstall.exe','Broker\AtmMachineBroker.exe')) {
             if (!(Test-Path "$root\$file")) { throw "Missing installed file: $file" }
           }
+          $edgeState="$env:ProgramData\AccommodationTestingBeta2\EdgeBackgroundPolicy.json"
+          if(!(Test-Path $edgeState)){throw 'Edge baseline receipt missing'}
+          $baseline=Get-Content $edgeState -Raw | ConvertFrom-Json
+          $edge='HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+          foreach($name in @('StartupBoostEnabled','BackgroundModeEnabled')){if((Get-ItemProperty -Path $edge -Name $name).$name -ne 0){throw "Edge baseline not applied: $name"}}
           if ((Get-Service AtmMachineBroker).Status -ne 'Running') { throw 'Broker service is not running' }
           if (!(Test-Path "$env:PUBLIC\Desktop\CTL TestDesk.lnk")) { throw 'Desktop shortcut missing' }
           & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$env:ATM_SOURCE\DeveloperTests\HelperDiagnostics.Tests.ps1"
@@ -118,6 +128,12 @@ jobs:
           }
           $p=Start-Process "$root\Uninstall.exe" -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Uninstall failed: $($p.ExitCode)" }
+          foreach($v in $baseline.Values){
+            $key=Get-Item -Path $edge -ErrorAction SilentlyContinue
+            $present=$key -and $key.GetValueNames() -contains $v.Name
+            if($present -ne $v.Present -or ($present -and $key.GetValue($v.Name) -ne $v.Value)){throw "Edge baseline was not restored: $($v.Name)"}
+          }
+          if(Test-Path $edgeState){throw 'Edge baseline receipt not removed after uninstall'}
           Start-Sleep 3
           if (Get-Service AtmMachineBroker -ErrorAction SilentlyContinue) { throw 'Broker service was not removed' }
           if (Test-Path "$root\AccommodationTestManager.exe") { throw 'App was not uninstalled' }
@@ -141,12 +157,12 @@ jobs:
       - name: Produce reviewed installer artifact (not a release)
         shell: pwsh
         run: |
-          $file='AccommodationTestManager-Setup-Beta4.5.exe'
+          $file='AccommodationTestManager-Setup-Beta4.6.exe'
           $hash=(Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $file" | Set-Content "$file.sha256" -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
-          name: Beta4.5-candidate-setup
+          name: Beta4.6-candidate-setup
           path: |
-            AccommodationTestManager-Setup-Beta4.5.exe
-            AccommodationTestManager-Setup-Beta4.5.exe.sha256
+            AccommodationTestManager-Setup-Beta4.6.exe
+            AccommodationTestManager-Setup-Beta4.6.exe.sha256
